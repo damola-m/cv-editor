@@ -26,7 +26,7 @@ function buildOptions(quality: number) {
     filename: 'AdedamolaMichael_CV.pdf',
     image: { type: 'jpeg', quality },
     html2canvas: {
-      scale: 2,          // 2× render = ~300 effective dpi on the 2480px canvas
+      scale: 3,          // 3× render ≈ 216 dpi on A3 — good print quality
       useCORS: true,
       logging: false,
     },
@@ -47,9 +47,9 @@ export async function exportPDF(): Promise<void> {
 
   if (pages.length === 0) throw new Error('No CV pages found in DOM')
 
-  // Wrap all pages in a temporary container
+  // Wrap all pages in a temporary container at true InDesign dimensions
   const container = document.createElement('div')
-  container.style.width = '2480px'
+  container.style.width = '1191px'
   container.style.background = 'white'
   pages.forEach(p => {
     const clone = p.cloneNode(true) as HTMLElement

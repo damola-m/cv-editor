@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
-    "html2pdf.js": "^0.10.2",
+    "html2pdf.js": "^0.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
