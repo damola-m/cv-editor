@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================
+   CV FONTS
+   ========================================== */
+@font-face {
+  font-family: 'Arial';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/fonts/arial.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Arial';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/fonts/arialbd.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Calibri';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/fonts/calibri.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Calibri';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/fonts/calibrib.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Calibri';
+  font-style: italic;
+  font-weight: normal;
+  src: url('/fonts/calibrili.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Century Schoolbook';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/fonts/CENSCBK.TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'Century Schoolbook';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/fonts/SCHLBKB.TTF') format('truetype');
+}
+
+/* ==========================================
+   BASE STYLES
+   ========================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background: #e5e5e5;
+}
+
+/* ==========================================
+   CV PAGE DIMENSIONS — A3 LANDSCAPE AT 150DPI
+   2480 x 1754px = 420mm x 297mm at 150dpi
+   ========================================== */
+.cv-page {
+  width: 2480px;
+  height: 1754px;
+  background: white;
+  position: relative;
+  overflow: hidden;
+  transform-origin: top left;
+  font-family: 'Calibri', sans-serif;
+}
+
+/* ==========================================
+   PRINT / PDF EXPORT STYLES
+   ========================================== */
+@media print {
+  body {
+    background: white;
+  }
+
+  .cv-page {
+    transform: none !important;
+    margin: 0;
+    page-break-after: always;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

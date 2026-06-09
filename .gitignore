@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.env.local
+.env.*.local
+*.local
+
+# Test scripts
+client/cv-shots.mjs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Logs
+npm-debug.log*
