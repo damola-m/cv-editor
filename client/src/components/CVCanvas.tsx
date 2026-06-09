@@ -59,6 +59,7 @@ export function CVCanvas({ data }: Props) {
   return (
     <div
       ref={containerRef}
+      className="cv-canvas-scroll"
       style={{
         width: '100%',
         height: '100%',

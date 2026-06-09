@@ -227,7 +227,18 @@ export function Sidebar({
 
       {/* ── AI Tailor ────────────────────────── */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={lbl('')}><I.Sparkle />{open && <span>AI Tailor</span>}</div>
+        <div style={{ ...lbl(), justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <I.Sparkle />{open && <span>AI Tailor</span>}
+          </span>
+          {open && msgs.length > 0 && (
+            <button type="button" onClick={() => setMsgs([])}
+              title="Clear chat"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUT, display: 'flex', alignItems: 'center', padding: '0 2px' }}>
+              <I.X />
+            </button>
+          )}
+        </div>
 
         {open ? (
           <>
@@ -409,7 +420,7 @@ export function Sidebar({
       <Div />
 
       {/* ── Export PDF ──────────────────────── */}
-      <div style={{ padding: open ? '10px 10px' : '10px 0', flexShrink: 0 }}>
+      <div style={{ padding: open ? '8px 10px 10px' : '8px 0 10px', flexShrink: 0 }}>
         {open ? (
           <button type="button" onClick={onExport} disabled={exporting}
             style={{ width: '100%', padding: '9px 0', background: exporting ? SURF : TEAL, color: exporting ? MUT : '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -418,7 +429,10 @@ export function Sidebar({
           </button>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button type="button" onClick={onExport} disabled={exporting} title="Export PDF" style={{ background: 'none', border: 'none', cursor: exporting ? 'not-allowed' : 'pointer', color: exporting ? MUT : TEAL }}><I.Download /></button>
+            <button type="button" onClick={onExport} disabled={exporting} title="Export PDF"
+              style={{ background: 'none', border: 'none', cursor: exporting ? 'not-allowed' : 'pointer', color: exporting ? MUT : TEAL }}>
+              <I.Download />
+            </button>
           </div>
         )}
       </div>

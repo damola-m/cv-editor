@@ -61,7 +61,23 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Thin dark scrollbars everywhere — matches the sidebar theme */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
 }
+
+/* Webkit scrollbars (Chrome / Edge / Safari) */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* CV canvas scrollbar: slightly lighter on the gray bg */
+.cv-canvas-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.25); }
+.cv-canvas-scroll { scrollbar-color: rgba(0,0,0,0.25) transparent; }
 
 html, body, #root {
   width: 100%;
