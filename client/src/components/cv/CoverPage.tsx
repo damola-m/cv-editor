@@ -43,23 +43,6 @@ export function CoverPage({ data }: Props) {
     setText(SPAN_EMAIL,   email)
   }, [address, phone, email])
 
-  // =============================
-  // Part 2 — Fix portfolio link
-  // InDesign exported the link as an old Google Drive URL.
-  // Update it to the real portfolio site.
-  // =============================
-  useEffect(() => {
-    const root = document.getElementById('cv-page-1')
-    if (!root) return
-    root.querySelectorAll<HTMLAnchorElement>('a[href]').forEach(a => {
-      if (a.href.includes('damola.ca') || a.href.includes('drive.google.com')) {
-        a.href   = 'https://www.damola.ca/'
-        a.target = '_blank'
-        a.rel    = 'noopener noreferrer'
-      }
-    })
-  }, [])   // runs once after mount
-
   return (
     <div
       className="id-page"

@@ -1,113 +1,132 @@
 /* ===================================
    pdfExport.ts
    -----------------------------------
-   - Uses window.print() so the browser renders a
-     true vector PDF — text is selectable, not a
-     raster image.
-   - CSS @page forces A3 landscape (420 × 297 mm).
-   - Each CV page is scaled by 1.333 to fill A3:
-     1191px CSS = 315mm at 96dpi; 420/315 = 1.333.
+   - Direct PDF download — no print dialog.
+   - Scales each 1191×842px InDesign page to A3
+     (1587×1123px at 96dpi = 420×297mm) then rasterises
+     with html2canvas and embeds in jsPDF.
+   - Tries progressive quality to stay under 5MB.
    =================================== */
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
-// Scale factor: fills A3 landscape with our 1191×842px InDesign pages.
-// 420mm ÷ (1191px × 0.26458mm/px) = 420 ÷ 315.1 = 1.3325
-const SCALE = (420 * 96) / (1191 * 25.4)   // ≈ 1.3325
+const A3W_MM = 420
+const A3H_MM = 297
+const A3W_PX = Math.round(A3W_MM * 96 / 25.4)  // 1587
+const A3H_PX = Math.round(A3H_MM * 96 / 25.4)  // 1123
+const PAGE_W  = 1191   // InDesign native width
+const PAGE_H  = 842    // InDesign native height
+const FIT     = A3W_PX / PAGE_W  // 1.3325 — fills A3 exactly
 
+// ==========================================
+// INTERNAL — render one page to canvas
+// ==========================================
+async function renderPage(
+  pageEl: HTMLElement,
+  canvasScale: number,
+): Promise<HTMLCanvasElement> {
+  const wrapper = document.createElement('div')
+  Object.assign(wrapper.style, {
+    position: 'fixed',
+    left:     '-9999px',
+    top:      '0',
+    width:    `${A3W_PX}px`,
+    height:   `${A3H_PX}px`,
+    overflow: 'hidden',
+    background: 'white',
+  })
+
+  const clone = pageEl.cloneNode(true) as HTMLElement
+  clone.removeAttribute('id')
+  Object.assign(clone.style, {
+    transform:       `scale(${FIT})`,
+    transformOrigin: 'top left',
+    width:           `${PAGE_W}px`,
+    height:          `${PAGE_H}px`,
+  })
+
+  wrapper.appendChild(clone)
+  document.body.appendChild(wrapper)
+
+  try {
+    return await html2canvas(wrapper, {
+      scale:     canvasScale,
+      useCORS:   true,
+      logging:   false,
+      allowTaint: true,
+      width:     A3W_PX,
+      height:    A3H_PX,
+    })
+  } finally {
+    document.body.removeChild(wrapper)
+  }
+}
+
+// ==========================================
+// PUBLIC
+// ==========================================
 export async function exportPDF(): Promise<void> {
-  const ids = ['cv-page-1', 'cv-page-2', 'cv-page-3']
-  const pages = ids.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[]
-  if (!pages.length) throw new Error('No CV pages found in DOM')
+  const ids   = ['cv-page-1', 'cv-page-2', 'cv-page-3']
+  const pages = ids
+    .map(id => document.getElementById(id))
+    .filter(Boolean) as HTMLElement[]
 
-  // =============================
-  // Part 1 — Build print container
-  // Each .cv-pp wrapper is exactly A3 size in CSS mm.
-  // The cloned .id-page inside is scaled to fill it.
-  // =============================
-  const container = document.createElement('div')
-  container.id = '__cv_print__'
+  if (!pages.length) throw new Error('CV pages not found')
 
-  pages.forEach((page, i) => {
-    const wrapper = document.createElement('div')
-    wrapper.className = 'cv-pp'
-    if (i > 0) wrapper.classList.add('cv-pp-break')
+  const MAX = 5 * 1024 * 1024   // 5 MB
 
-    const clone = page.cloneNode(true) as HTMLElement
-    clone.removeAttribute('id')   // avoid duplicate IDs in DOM
-    clone.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      transform: scale(${SCALE});
-      transform-origin: top left;
-    `
-    wrapper.appendChild(clone)
-    container.appendChild(wrapper)
-  })
+  // Try decreasing quality until the file fits under 5 MB
+  for (const { canvasScale, jpegQ } of [
+    { canvasScale: 2,   jpegQ: 0.92 },
+    { canvasScale: 2,   jpegQ: 0.78 },
+    { canvasScale: 1.5, jpegQ: 0.70 },
+  ]) {
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit:        'mm',
+      format:      'a3',
+      compress:    true,
+    })
 
-  // =============================
-  // Part 2 — Inject print CSS
-  // Hides everything except the print container
-  // and sets A3 page dimensions.
-  // =============================
-  const style = document.createElement('style')
-  style.id = '__cv_print_style__'
-  style.textContent = `
-    @media print {
-      @page {
-        size: A3 landscape;
-        margin: 0;
-      }
-      /* Hide the whole app */
-      body > *:not(#__cv_print__) {
-        display: none !important;
-        visibility: hidden !important;
-      }
-      /* Show only the print container */
-      #__cv_print__ {
-        display: block !important;
-        visibility: visible !important;
-      }
-      /* Each A3 page wrapper */
-      .cv-pp {
-        width: 420mm;
-        height: 297mm;
-        overflow: hidden;
-        position: relative;
-        background: white;
-      }
-      /* Page break before pages 2 and 3 */
-      .cv-pp-break {
-        break-before: page;
-        page-break-before: always;
-      }
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0) pdf.addPage('a3', 'landscape')
+      const canvas = await renderPage(pages[i], canvasScale)
+      const img    = canvas.toDataURL('image/jpeg', jpegQ)
+      pdf.addImage(img, 'JPEG', 0, 0, A3W_MM, A3H_MM)
     }
-    /* Hidden on screen */
-    #__cv_print__ {
-      display: none;
-      position: absolute;
-      left: -99999px;
-      top: 0;
+
+    const blob = pdf.output('blob')
+    if (blob.size <= MAX || jpegQ <= 0.70) {
+      const url = URL.createObjectURL(blob)
+      const a   = document.createElement('a')
+      a.href     = url
+      a.download = 'AdedamolaMichael_CV.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+      return
     }
-  `
+  }
+}
 
-  document.head.appendChild(style)
-  document.body.appendChild(container)
+// ==========================================
+// EXPORT FOR VERSIONS — returns a Blob
+// ==========================================
+export async function exportPDFBlob(): Promise<Blob> {
+  const ids   = ['cv-page-1', 'cv-page-2', 'cv-page-3']
+  const pages = ids
+    .map(id => document.getElementById(id))
+    .filter(Boolean) as HTMLElement[]
 
-  // =============================
-  // Part 3 — Wait for fonts then print
-  // =============================
-  await document.fonts.ready
+  if (!pages.length) throw new Error('CV pages not found')
 
-  await new Promise<void>(resolve => {
-    const done = () => {
-      // Clean up after the print dialog closes
-      style.remove()
-      container.remove()
-      resolve()
-    }
-    window.addEventListener('afterprint', done, { once: true })
-    window.print()
-    // Fallback cleanup if afterprint never fires (some browsers)
-    setTimeout(() => { style.remove(); container.remove(); resolve() }, 60_000)
-  })
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3', compress: true })
+
+  for (let i = 0; i < pages.length; i++) {
+    if (i > 0) pdf.addPage('a3', 'landscape')
+    const canvas = await renderPage(pages[i], 1.5)
+    const img    = canvas.toDataURL('image/jpeg', 0.82)
+    pdf.addImage(img, 'JPEG', 0, 0, A3W_MM, A3H_MM)
+  }
+
+  return pdf.output('blob')
 }
