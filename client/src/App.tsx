@@ -11,7 +11,7 @@ import { useCVState } from './hooks/useCVState'
 import { exportPDF } from './utils/pdfExport'
 
 export default function App() {
-  const { cv, pending, queuePatches, applyPatch, rejectPatch, updateContact } = useCVState()
+  const { cv, pending, queuePatches, applyPatch, rejectPatch, updateContact, persistSettings } = useCVState()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [exporting,   setExporting]   = useState(false)
 
@@ -43,6 +43,7 @@ export default function App() {
         open={sidebarOpen}
         onToggle={() => setSidebarOpen(v => !v)}
         onContactChange={updateContact}
+        onPersist={persistSettings}
       />
 
       {/* =============================
