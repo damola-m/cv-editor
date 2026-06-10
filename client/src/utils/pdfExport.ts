@@ -15,6 +15,10 @@ import html2canvas from 'html2canvas'
 // InDesign native page dimensions
 const PAGE_W = 1191
 const PAGE_H = 842
+// Render height — 10px safety buffer so sub-pixel rounding never clips
+// the bottom edge of the cover sketch. jsPDF stretches to A3 so the
+// 10px = <1mm extra white space at the bottom (imperceptible in print).
+const RENDER_H = PAGE_H + 10
 
 // A3 landscape in mm
 const A3W = 420
@@ -40,11 +44,9 @@ async function renderPage(
     left:          '0px',
     top:           '0px',
     width:         `${PAGE_W}px`,
-    height:        `${PAGE_H}px`,
+    height:        `${RENDER_H}px`,   // 10px safety buffer
     overflow:      'hidden',
     background:    'white',
-    // On top (not z-index:-9999 which caused stacking-context clipping on page 1).
-    // The element flashes briefly during export then is removed in the finally block.
     zIndex:        '99999',
     pointerEvents: 'none',
   })
@@ -70,7 +72,7 @@ async function renderPage(
       allowTaint:   true,
       imageTimeout: 30_000,   // give the sketch image time to load
       width:        PAGE_W,
-      height:       PAGE_H,
+      height:       RENDER_H,     // include the safety buffer
     })
   } finally {
     document.body.removeChild(wrap)
