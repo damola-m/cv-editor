@@ -294,8 +294,13 @@ export function Sidebar({
                 <textarea
                   value={draft} rows={4}
                   onChange={e => setDraft(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !thinking) handleSend() }}
-                  placeholder="Ask or paste a job URL…"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey && !thinking) {
+                      e.preventDefault()  // stop the newline
+                      handleSend()
+                    }
+                  }}
+                  placeholder="Ask or paste a job URL… (Shift+Enter for newline)"
                   style={{ flex: 1, minWidth: 0, background: SURF, border: `1px solid ${BRD}`, borderRadius: 6, color: TEXT, fontSize: 12, lineHeight: 1.45, padding: '8px 10px', resize: 'none', fontFamily: 'Arial, sans-serif', outline: 'none', boxSizing: 'border-box' }}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>

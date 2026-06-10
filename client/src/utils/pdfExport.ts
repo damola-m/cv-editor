@@ -43,14 +43,14 @@ async function renderPage(
     height:        `${PAGE_H}px`,
     overflow:      'hidden',
     background:    'white',
-    zIndex:        '-9999',     // behind everything — user can't see it
-    pointerEvents: 'none',      // can't interact with it
-    // Do NOT set visibility:hidden or opacity:0 — html2canvas renders those as blank
+    // On top (not z-index:-9999 which caused stacking-context clipping on page 1).
+    // The element flashes briefly during export then is removed in the finally block.
+    zIndex:        '99999',
+    pointerEvents: 'none',
   })
 
   const clone = el.cloneNode(true) as HTMLElement
   clone.removeAttribute('id')
-  // Strip any viewport-scale transform applied by CVCanvas
   clone.style.transform       = 'none'
   clone.style.transformOrigin = ''
   clone.style.width           = `${PAGE_W}px`
@@ -59,14 +59,18 @@ async function renderPage(
   wrap.appendChild(clone)
   document.body.appendChild(wrap)
 
+  // Wait for fonts and any images (e.g. the large cover sketch on page 1)
+  await document.fonts.ready
+
   try {
     return await html2canvas(wrap, {
-      scale:      canvasScale,
-      useCORS:    true,
-      logging:    false,
-      allowTaint: true,
-      width:      PAGE_W,
-      height:     PAGE_H,
+      scale:        canvasScale,
+      useCORS:      true,
+      logging:      false,
+      allowTaint:   true,
+      imageTimeout: 30_000,   // give the sketch image time to load
+      width:        PAGE_W,
+      height:       PAGE_H,
     })
   } finally {
     document.body.removeChild(wrap)

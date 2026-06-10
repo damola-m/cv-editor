@@ -153,7 +153,7 @@ export async function sendChatMessage(
     config: {
       systemInstruction: buildSystem(cv),
       temperature:       0.7,
-      maxOutputTokens:   2048,
+      maxOutputTokens:   8192,  // 2048 was cutting off long CV edits and explanations
     },
   })
 

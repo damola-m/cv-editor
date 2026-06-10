@@ -143,11 +143,21 @@ export function useCVState() {
 
   // =============================
   // Part 5 — Reset to default
+  // Resets CV content (summary, experience, etc.) to the
+  // original defaults but PRESERVES contact info and API key
+  // so the user doesn't have to re-enter their details.
   // =============================
-  const resetToDefault = useCallback(() => {
-    localStorage.removeItem(CV_KEY)
-    localStorage.removeItem(CONTACT_KEY)
-    setCV(defaultCV)
+  const resetToDefault = useCallback((currentCV: CVData) => {
+    const preserved: CVData = {
+      ...defaultCV,
+      _static: {
+        ...defaultCV._static,
+        contact: { ...currentCV._static.contact },  // keep address/phone/email
+      },
+    }
+    localStorage.setItem(CV_KEY, JSON.stringify(preserved))
+    // cv_contact and gemini_api_key are deliberately not touched
+    setCV(preserved)
   }, [])
 
   // =============================
@@ -161,7 +171,8 @@ export function useCVState() {
     cv, setCV,
     applyPatch, rejectPatch, queuePatches,
     updateContact, persistSettings,
-    resetToDefault, loadVersion,
+    resetToDefault: () => resetToDefault(cv),
+    loadVersion,
     pending: [] as FieldPatch[],
   }
 }
