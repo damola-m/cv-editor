@@ -2,10 +2,10 @@
    gemini.ts
    -----------------------------------
    - Conversational AI chat for CV editing.
-   - Supports multi-turn history, image uploads,
-     and structured patch responses.
+   - Uses @google/genai (new SDK) with gemini-2.5-flash.
+   - Supports multi-turn history and image uploads.
    =================================== */
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import type { CVData } from '../data/cv-data'
 import type { FieldPatch } from '../hooks/useCVState'
 import { buildCVContext } from './cv-schema'
@@ -15,12 +15,12 @@ import { buildCVContext } from './cv-schema'
 // ==========================================
 
 export type ChatMessage = {
-  id: string
-  role: 'user' | 'assistant'
-  text: string
-  imageUrl?: string   // base64 data URL shown in chat
-  patches?: FieldPatch[]
-  error?: boolean
+  id:        string
+  role:      'user' | 'assistant'
+  text:      string
+  imageUrl?: string
+  patches?:  FieldPatch[]
+  error?:    boolean
 }
 
 // ==========================================
@@ -48,17 +48,13 @@ RULES:
 
 RESPONSE FORMAT — always respond with a single JSON object:
 {
-  "message": "Your conversational reply here. Explain what you changed and why, or answer the question.",
+  "message": "Your conversational reply here.",
   "patches": []
 }
 
-If you make CV changes, populate the patches array with:
-{ "field": "fieldPath", "newValue": "new content" }
-
-For array fields (bullets, certifications, awards, keyProject.bullets), newValue must be a valid JSON array string, e.g.: ["bullet one", "bullet two"]
-
-If no changes are needed, set patches to an empty array [].
-Always include a helpful message regardless.`
+For CV changes, populate patches with: { "field": "fieldPath", "newValue": "new content" }
+For array fields (bullets, certifications, awards), newValue must be a valid JSON array string.
+If no changes needed, set patches to [].`
 }
 
 // ==========================================
@@ -68,51 +64,48 @@ Always include a helpful message regardless.`
 export async function fetchJobText(url: string): Promise<string | null> {
   try {
     const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-    const res = await fetch(proxy, { signal: AbortSignal.timeout(10000) })
+    const res   = await fetch(proxy, { signal: AbortSignal.timeout(10000) })
     if (!res.ok) return null
     const json = await res.json() as { contents?: string }
     if (!json.contents) return null
     return json.contents.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 8000)
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 // ==========================================
 // RESPONSE PARSER
 // ==========================================
 
-function parseResponse(raw: string): { message: string; patches: FieldPatch[] } {
-  // Try full JSON parse
+function parse(raw: string): { message: string; patches: FieldPatch[] } {
+  // Try direct JSON parse
   try {
-    const parsed = JSON.parse(raw) as { message?: string; patches?: unknown[] }
-    if (typeof parsed.message === 'string') {
+    const p = JSON.parse(raw) as { message?: string; patches?: unknown[] }
+    if (typeof p.message === 'string') {
       return {
-        message: parsed.message,
-        patches: Array.isArray(parsed.patches)
-          ? (parsed.patches as FieldPatch[]).filter(p => p.field && p.newValue != null)
+        message: p.message,
+        patches: Array.isArray(p.patches)
+          ? (p.patches as FieldPatch[]).filter(x => x.field && x.newValue != null)
           : [],
       }
     }
   } catch { /* continue */ }
 
-  // Try to extract a JSON block from markdown code fence
+  // Try fenced JSON block
   const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (fence) {
     try {
-      const parsed = JSON.parse(fence[1]) as { message?: string; patches?: unknown[] }
-      if (typeof parsed.message === 'string') {
+      const p = JSON.parse(fence[1]) as { message?: string; patches?: unknown[] }
+      if (typeof p.message === 'string') {
         return {
-          message: parsed.message,
-          patches: Array.isArray(parsed.patches)
-            ? (parsed.patches as FieldPatch[]).filter(p => p.field && p.newValue != null)
+          message: p.message,
+          patches: Array.isArray(p.patches)
+            ? (p.patches as FieldPatch[]).filter(x => x.field && x.newValue != null)
             : [],
         }
       }
     } catch { /* continue */ }
   }
 
-  // Fallback — treat whole response as plain message
   return { message: raw.trim(), patches: [] }
 }
 
@@ -121,52 +114,56 @@ function parseResponse(raw: string): { message: string; patches: FieldPatch[] } 
 // ==========================================
 
 export async function sendChatMessage(
-  apiKey: string,
-  cv: CVData,
-  history: ChatMessage[],
-  userText: string,
-  imageBase64?: string,   // bare base64 (no data: prefix)
-  imageMime?: string,     // 'image/jpeg' | 'image/png'
+  apiKey:      string,
+  cv:          CVData,
+  history:     ChatMessage[],
+  userText:    string,
+  imageBase64?: string,
+  imageMime?:   string,
 ): Promise<{ message: string; patches: FieldPatch[] }> {
-  const genAI  = new GoogleGenerativeAI(apiKey)
-  const model  = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: buildSystem(cv),
-  })
+  const ai = new GoogleGenAI({ apiKey })
 
   // =============================
-  // Part 1 — Build Gemini history
+  // Part 1 — Build message history
   // =============================
-  const geminiHistory = history.map(m => ({
-    role: m.role === 'user' ? 'user' as const : 'model' as const,
+  type Part = { text: string } | { inlineData: { mimeType: string; data: string } }
+  type Content = { role: 'user' | 'model'; parts: Part[] }
+
+  const contents: Content[] = history.map(m => ({
+    role:  m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.text }],
   }))
 
   // =============================
-  // Part 2 — Build current message parts
+  // Part 2 — Current user message
   // =============================
-  type Part = { text: string } | { inlineData: { mimeType: string; data: string } }
-  const parts: Part[] = []
+  const currentParts: Part[] = []
   if (imageBase64 && imageMime) {
-    parts.push({ inlineData: { mimeType: imageMime, data: imageBase64 } })
+    currentParts.push({ inlineData: { mimeType: imageMime, data: imageBase64 } })
   }
-  parts.push({ text: userText })
+  currentParts.push({ text: userText })
+  contents.push({ role: 'user', parts: currentParts })
 
   // =============================
   // Part 3 — Call Gemini
   // =============================
-  const chat = model.startChat({ history: geminiHistory })
-  const result = await chat.sendMessage(parts)
-  const raw = result.response.text()
+  const result = await ai.models.generateContent({
+    model:    'gemini-2.5-flash',
+    contents,
+    config: {
+      systemInstruction: buildSystem(cv),
+      temperature:       0.7,
+      maxOutputTokens:   2048,
+    },
+  })
 
-  return parseResponse(raw)
+  const raw = result.text ?? ''
+  return parse(raw)
 }
 
-// Keep adjustCVForJob for backwards compat — routes through new chat function
+// Keep for backwards compat
 export async function adjustCVForJob(
-  apiKey: string,
-  cv: CVData,
-  jobText: string,
+  apiKey: string, cv: CVData, jobText: string,
 ): Promise<FieldPatch[]> {
   const res = await sendChatMessage(
     apiKey, cv, [],

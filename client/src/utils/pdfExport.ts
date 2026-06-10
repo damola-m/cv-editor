@@ -36,15 +36,16 @@ async function renderPage(
   // renders it; the content isn't cropped.
   const wrap = document.createElement('div')
   Object.assign(wrap.style, {
-    position:   'absolute',
-    left:       '0px',
-    top:        '0px',
-    width:      `${PAGE_W}px`,
-    height:     `${PAGE_H}px`,
-    overflow:   'hidden',
-    background: 'white',
-    visibility: 'hidden',
-    zIndex:     '-9999',
+    position:      'absolute',
+    left:          '0px',
+    top:           '0px',
+    width:         `${PAGE_W}px`,
+    height:        `${PAGE_H}px`,
+    overflow:      'hidden',
+    background:    'white',
+    zIndex:        '-9999',     // behind everything — user can't see it
+    pointerEvents: 'none',      // can't interact with it
+    // Do NOT set visibility:hidden or opacity:0 — html2canvas renders those as blank
   })
 
   const clone = el.cloneNode(true) as HTMLElement
